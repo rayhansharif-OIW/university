@@ -1,0 +1,206 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// model User {
+//   id          Int      @id @default(autoincrement())
+//   name        String?
+//   phone       String? @unique
+//   email       String @unique
+//   password    String  
+//   avatar      String[]
+//   role        String  @default("user")
+//   profile Profile?
+//   subscriptions Subscription[] @relation("SubscribedChannels")
+
+//   createdChannels Channel[]   @relation("CreatedByUser")  
+//   post        Post[]
+//   comment     Comment[]
+//   reply       Reply []
+//   refreshToken String?
+//   createdAt   DateTime @default(now()) @map(name: "created_at") 
+//   updatedAt   DateTime @default(now()) @map(name: "updated_at") 
+//   subscribers           Subscription2[]  @relation("Subscriber")
+//   subscribedTo          Subscription2[]  @relation("Subscribed")
+// }
+
+model User {
+  id              Int                 @id @default(autoincrement())
+  name            String?
+  phone           String?             @unique
+  email           String              @unique
+  password        String
+  avatar          String[]
+  role            String              @default("user")
+  profile         Profile?
+  subscriptionsw  Subscription[]      @relation("SubscribedChannels")
+  createdChannels Channel[]           @relation("CreatedByUser")
+  post            Post[]
+  comment         Comment[]
+  reply           Reply[]
+  refreshToken    String?
+  createdAt       DateTime            @default(now()) @map(name: "created_at")
+  updatedAt       DateTime            @default(now()) @map(name: "updated_at")
+  subscriptions   localSubscription[] @relation("Subscriber")
+  subscribedTo    localSubscription[] @relation("Subscribed")
+  // videos
+  // watchHistory        Video[]          @relation("WatchedVideos", fields: [id], references: [ownerId]) // relation to videos in watch history
+  // uploadedVideos      Video[]          @relation("UploadedVideos", fields: [id], references: [ownerId]) // relation to uploaded videos (optional)
+  // Define relation to WatchHistory
+  watchHistory    WatchHistory[]
+}
+
+// Define the Video model
+model Video {
+  id           Int            @id @default(autoincrement())
+  videoFile    String
+  thumbnail    String
+  title        String
+  description  String
+  duration     Int
+  views        Int            @default(0)
+  isPublished  Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @default(now())
+  // Define relation to WatchHistory
+  watchHistory WatchHistory[]
+}
+
+// Define the WatchHistory model to represent the relationship between users and videos
+model WatchHistory {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  video     Video    @relation(fields: [videoId], references: [id])
+  videoId   Int
+  watchedAt DateTime @default(now())
+
+  @@unique([userId, videoId])
+}
+
+model Profile {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @unique // relation scalar field (used in the `@relation` attribute above)
+
+  // details
+  firstName   String
+  lastName    String
+  middleName  String?
+  email       String  @unique
+  phoneNumber String?
+
+  summary String?
+
+  education      Education[]
+  skills         Json?
+  experience     Experience[]
+  certifications Certification[]
+}
+
+model Education {
+  id             Int     @id @default(autoincrement())
+  profileId      Int
+  degree         String
+  schoolName     String
+  graduationYear Int
+  location       String?
+
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+model Experience {
+  id              Int       @id @default(autoincrement())
+  profileId       Int
+  employerName    String
+  jobTitle        String
+  startDate       DateTime
+  endDate         DateTime?
+  duties          String
+  accomplishments Json? // Optional field for specific achievements with metrics
+
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+model Certification {
+  id             Int       @id @default(autoincrement())
+  profileId      Int
+  name           String
+  issuingBody    String
+  issuedDate     DateTime
+  expirationDate DateTime?
+
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+// Channel model
+model Channel {
+  id          Int            @id @default(autoincrement())
+  creator     User           @relation("CreatedByUser", fields: [creatorId], references: [id])
+  creatorId   Int
+  // Add other fields as needed
+  subscribers Subscription[] @relation("SubscribingUsers")
+}
+
+// Subscription model
+model Subscription {
+  id           Int      @id @default(autoincrement())
+  subscriber   User     @relation("SubscribedChannels", fields: [subscriberId], references: [id])
+  subscriberId Int
+  channel      Channel  @relation("SubscribingUsers", fields: [channelId], references: [id])
+  channelId    Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Subscription model
+// Subscription model
+model localSubscription {
+  id               Int      @id @default(autoincrement())
+  subscriber       User     @relation("Subscriber", fields: [subscriberId], references: [id])
+  subscriberId     Int
+  subscribedUser   User     @relation("Subscribed", fields: [subscribedUserId], references: [id])
+  subscribedUserId Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Post {
+  id            Int       @id @default(autoincrement())
+  user          User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  comment       Comment[]
+  user_id       Int
+  title         String
+  description   String
+  comment_count Int       @default(0)
+  created_at    DateTime  @default(now())
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  post_id    Int
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id    Int
+  reply      Reply[]
+  comment    String
+  created_at DateTime @default(now())
+}
+
+model Reply {
+  id         String  @id @default(uuid())
+  comment    Comment @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+  comment_id String
+  user       User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id    Int
+  content    String
+}

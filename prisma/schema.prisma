@@ -1,0 +1,269 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// model User {
+//   id          Int      @id @default(autoincrement())
+//   name        String?
+//   phone       String? @unique
+//   email       String @unique
+//   password    String  
+//   avatar      String[]
+//   role        String  @default("user")
+//   profile Profile?
+//   subscriptions Subscription[] @relation("SubscribedChannels")
+
+//   createdChannels Channel[]   @relation("CreatedByUser")  
+//   post        Post[]
+//   comment     Comment[]
+//   reply       Reply []
+//   refreshToken String?
+//   createdAt   DateTime @default(now()) @map(name: "created_at") 
+//   updatedAt   DateTime @default(now()) @map(name: "updated_at") 
+//   subscribers           Subscription2[]  @relation("Subscriber")
+//   subscribedTo          Subscription2[]  @relation("Subscribed")
+// }
+
+model User {
+  id              Int                 @id @default(autoincrement())
+  department      String?
+  batch           String?
+  name            String?
+  phone           String?             @unique
+  email           String              @unique
+  password        String
+  avatar          String[]
+  role            String              @default("user")
+  profile         Profile?
+  subscriptionsw  Subscription[]      @relation("SubscribedChannels")
+  createdChannels Channel[]           @relation("CreatedByUser")
+  post            Post[]
+  comment         Comment[]
+  reply           Reply[]
+  refreshToken    String?
+  createdAt       DateTime            @default(now()) @map(name: "created_at")
+  updatedAt       DateTime            @default(now()) @map(name: "updated_at")
+  subscriptions   localSubscription[] @relation("Subscriber")
+  subscribedTo    localSubscription[] @relation("Subscribed")
+  // videos
+  // watchHistory        Video[]          @relation("WatchedVideos", fields: [id], references: [ownerId]) // relation to videos in watch history
+  // uploadedVideos      Video[]          @relation("UploadedVideos", fields: [id], references: [ownerId]) // relation to uploaded videos (optional)
+  // Define relation to WatchHistory
+  watchHistory    WatchHistory[]
+
+  // playlist
+  playlists   Playlist[] // A user can have multiple playlists
+}
+
+// Define the Playlist model
+model Playlist {
+  id            Int       @id @default(autoincrement())
+  name          String
+  description   String?
+  isPrivate     Boolean   @default(false)
+  owner         User      @relation(fields: [ownerId], references: [id])
+  ownerId       Int
+  videos        VideoInPlaylist[] // A playlist can contain multiple videos
+  channel       Channel[]       
+  createdAt     DateTime  @default(now()) @map(name: "created_at") 
+  updatedAt     DateTime  @default(now()) @map(name: "updated_at") 
+}
+
+// Define the Video model
+model Video {
+  id           Int            @id @default(autoincrement())
+  videoFile    String
+  thumbnail    String
+  title        String
+  description  String
+  duration     Int
+  views        Int            @default(0)
+  isPublished  Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @default(now())
+  // Define relation to WatchHistory
+  watchHistory WatchHistory[]
+  playlists     VideoInPlaylist[] // A video can be in multiple playlists
+}
+
+// Define the relation table between Video and Playlist
+model VideoInPlaylist {
+  id            Int       @id @default(autoincrement())
+  video         Video     @relation(fields: [videoId], references: [id])
+  videoId       Int
+  playlist      Playlist  @relation(fields: [playlistId], references: [id])
+  playlistId    Int
+  createdAt     DateTime  @default(now()) @map(name: "created_at") 
+  @@unique([videoId, playlistId])
+}
+
+// Define the WatchHistory model to represent the relationship between users and videos
+model WatchHistory {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  video     Video    @relation(fields: [videoId], references: [id])
+  videoId   Int
+  watchedAt DateTime @default(now())
+
+  @@unique([userId, videoId])
+}
+
+model Profile {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @unique // relation scalar field (used in the `@relation` attribute above)
+
+  // details
+  firstName   String
+  lastName    String
+  middleName  String?
+  email       String  @unique
+  phoneNumber String?
+
+  summary String?
+
+  education      Education[]
+  skills         Json?
+  experience     Experience[]
+  certifications Certification[]
+}
+
+model Education {
+  id             Int     @id @default(autoincrement())
+  profileId      Int
+  degree         String
+  schoolName     String
+  graduationYear Int
+  location       String?
+
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+model Experience {
+  id              Int       @id @default(autoincrement())
+  profileId       Int
+  employerName    String
+  jobTitle        String
+  startDate       DateTime
+  endDate         DateTime?
+  duties          String
+  accomplishments Json? // Optional field for specific achievements with metrics
+
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+model Certification {
+  id             Int       @id @default(autoincrement())
+  profileId      Int
+  name           String
+  issuingBody    String
+  issuedDate     DateTime
+  expirationDate DateTime?
+
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+// Channel model
+model Channel {
+  id          Int            @id @default(autoincrement())
+  creator     User           @relation("CreatedByUser", fields: [creatorId], references: [id])
+  creatorId   Int
+  // Add other fields as needed
+  subscribers Subscription[] @relation("SubscribingUsers")
+  playlist    Playlist[]
+}
+
+// Subscription model
+model Subscription {
+  id           Int      @id @default(autoincrement())
+  subscriber   User     @relation("SubscribedChannels", fields: [subscriberId], references: [id])
+  subscriberId Int
+  channel      Channel  @relation("SubscribingUsers", fields: [channelId], references: [id])
+  channelId    Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Subscription model
+// Subscription model
+model localSubscription {
+  id               Int      @id @default(autoincrement())
+  subscriber       User     @relation("Subscriber", fields: [subscriberId], references: [id])
+  subscriberId     Int
+  subscribedUser   User     @relation("Subscribed", fields: [subscribedUserId], references: [id])
+  subscribedUserId Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Post {
+  id            Int       @id @default(autoincrement())
+  user          User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  comment       Comment[]
+  user_id       Int
+  title         String
+  description   String
+  images        Json?
+  comment_count Int       @default(0)
+  created_at    DateTime  @default(now())
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  post_id    Int
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id    Int
+  reply      Reply[]
+  comment    String
+  created_at DateTime @default(now())
+}
+
+model Reply {
+  id                 String  @id @default(uuid())
+  comment            Comment @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+  comment_id         String
+  parent_reply       Reply?  @relation("ChildReplies", fields: [parent_reply_id], references: [id], onDelete: Cascade)
+  parent_reply_id    String? // Nullable field to represent parent reply
+  user               User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id            Int
+  content            String
+  child_replies      Reply[] @relation("ChildReplies") // Bidirectional relation for child replies
+}
+
+
+
+// @@@@@@@@@@@@@@@@@@@@@@@@@@
+model Userr {
+  id   Int     @id @default(autoincrement())
+  name String
+  roles UserRole[] @relation("userRoles")  // Add the relation field here
+}
+
+model Role {
+  id   Int     @id @default(autoincrement())
+  name String  @unique
+  users UserRole[] @relation("RoleUsers") // Add the relation field here
+}
+
+model UserRole {
+  userId  Int      @id  // Make userId the unique identifier
+  roleId Int
+  joinedAt DateTime @default(now())
+
+  user  Userr  @relation("userRoles",fields: [userId], references: [id])
+  role  Role  @relation("RoleUsers",fields: [roleId], references: [id])
+
+  // You can add other fields specific to the relationship here
+  // For example, a permission level for the user in this role.
+}
